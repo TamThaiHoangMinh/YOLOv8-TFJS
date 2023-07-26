@@ -64,76 +64,148 @@ const YOLOv8_TFJS = async (box) => {
     const canvas = main_container.querySelector("canvas");
     const ctx = canvas.getContext("2d");
 
+    const preprocess = (source, modelWidth, modelHeight) => {
+        let xRatio, yRatio; // ratios for boxes
+
+        const input = tf.tidy(() => {
+            const img = tf.browser.fromPixels(source);
+            console.log(`img shape: ${img.shape}`);
+            const [h, w] = img.shape.slice(0, 2); // get source width and height
+            const maxSize = Math.max(w, h); // get max size
+            console.log(`modelWidth: ${modelWidth}, modelHeight: ${modelHeight}, w: ${w}, h: ${h}, maxSize: ${maxSize}`);
+            const imgPadded = img.pad([
+                [0, maxSize - h], // padding y [bottom only]
+                [0, maxSize - w], // padding x [right only]
+                [0, 0],
+            ]);
+            console.log(`imgPadded shape: ${imgPadded.shape}`);
+
+
+            xRatio = maxSize / w; // update xRatio
+            yRatio = maxSize / h; // update yRatio
+
+            const result = tf.image
+                .resizeBilinear(imgPadded, [modelWidth, modelHeight]) // resize frame
+                .div(255.0) // normalize
+                .expandDims(0); // add batch
+            console.log(result.shape);
+            return result;
+        });
+
+        return [input, xRatio, yRatio];
+    };
+
     async function detect(video, model, ctx) {
-        // Ensure the video data is ready
         if (video.readyState < 3) {
             return [];
         }
 
+        console.log(model);
+        console.log(model.inputs);
+
+        let modelDetails = {
+            net: yolov8,
+            inputShape: yolov8.inputs[0].shape,
+        }
+
+        let labels = [];
+        let numClass;
+
+        async function getLabels() {
+            try {
+                const response = await fetch('http://127.0.0.1:5500/labels.json');
+                labels = await response.json();
+            } catch (error) {
+                console.error('Error at fetching labels', error);
+            }
+
+            numClass = labels.length;
+            console.log("numClass: " + numClass);
+        }
+
+        await getLabels();
+
+
+        const modelWidth = modelDetails.inputShape[1];
+        const modelHeight = modelDetails.inputShape[2];
         // Create a temporary canvas to hold the video frame
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = video.videoWidth;
         tempCanvas.height = video.videoHeight;
         const tempContext = tempCanvas.getContext('2d');
 
-        // Draw the video frame to the canvas
+        // Draw the video frame onto the temporary canvas
         tempContext.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
 
-        // Now we can get the pixels from the canvas instead of the video
-        const tfImg = tf.browser.fromPixels(tempCanvas);
-        const resizedImg = tf.image.resizeBilinear(tfImg, [640, 640]); // Assuming the model accepts 416x416 images
-        const castedImg = resizedImg.toFloat();
-        const expandedImg = castedImg.expandDims(0);
-        const img = expandedImg.div(tf.scalar(255)); // Normalize the image to [0, 1]
+        // Pass the temporary canvas (instead of the video) to your preprocess function
+        const [input, xRatio, yRatio] = preprocess(tempCanvas, modelWidth, modelHeight);
 
-        // Use the model to do object detection
-        const predictions = await model.executeAsync(img);
-        console.log("Predictions: " + predictions);
-        // Filter predictions. Assuming 'scores' and 'boxes' are output by the model
-        const scores = predictions[0].dataSync();
-        const boxes = predictions[1].dataSync();
+        // console.log(input);
 
-        // Get indices of scores that are over a certain threshold
-        const indices = scores
-            .map((score, i) => (score > 0.5 ? i : -1)) // Threshold of 0.5
-            .filter((index) => index !== -1);
+        const res = model.execute(input); // inference model
+        // console.log('res', res);
+        const predictions = res.transpose([0, 2, 1]); // transpose result [b, det, n] => [b, n, det]
+        // console.log('predictions', predictions);
 
-        // Build up the bounding boxes
-        const boundingBoxes = indices.map((index) => {
-            const minY = boxes[index * 4 + 0] * video.height;
-            const minX = boxes[index * 4 + 1] * video.width;
-            const maxY = boxes[index * 4 + 2] * video.height;
-            const maxX = boxes[index * 4 + 3] * video.width;
 
+        const boxes = tf.tidy(() => {
+            const w = predictions.slice([0, 0, 2], [-1, -1, 1]); // get width
+            const h = predictions.slice([0, 0, 3], [-1, -1, 1]); // get height
+            const x1 = tf.sub(predictions.slice([0, 0, 0], [-1, -1, 1]), tf.div(w, 2)); // x1
+            const y1 = tf.sub(predictions.slice([0, 0, 1], [-1, -1, 1]), tf.div(h, 2)); // y1
+            return tf.concat([y1, x1, tf.add(y1, h), tf.add(x1, w)], 2).squeeze();
+        });
+
+        const [scores, classes] = tf.tidy(() => {
+            const rawScores = predictions.slice([0, 0, 4], [-1, -1, numClass]).squeeze(0); // COCO have 80 class
+            return [rawScores.max(1), rawScores.argMax(1)];
+        });
+
+        const nms = await tf.image.nonMaxSuppressionAsync(boxes, scores, 500, 0.45, 0.2);
+
+        const boxes_data = boxes.gather(nms, 0).dataSync();
+        const scores_data = scores.gather(nms, 0).dataSync();
+        const classes_data = classes.gather(nms, 0).dataSync();
+
+        // console.log("boxes_data" + boxes_data);
+        // console.log("scores_data" + scores_data);
+        // console.log("classes_data" + classes_data);
+
+        const boxes_data2D = [];
+        for (let i = 0; i < boxes_data.length; i += 4) {
+            boxes_data2D.push(boxes_data.slice(i, i + 4));
+        }
+
+        const boundingBoxes = boxes_data2D.map((box, i) => {
             return {
-                label: "object", // You'll need to use your labels.json to get the actual label
-                bbox: [minX, minY, maxX - minX, maxY - minY],
-                score: scores[index],
+                label: labels[classes_data[i]],
+                bbox: [box[1] * xRatio, box[0] * yRatio, (box[3] - box[1]) * xRatio, (box[2] - box[0]) * yRatio],
+                score: scores_data[i]
             };
         });
 
-        tf.dispose([tfImg, resizedImg, castedImg, expandedImg, img]); // Don't forget to clean up
+        console.log(boundingBoxes); // add this line
 
-        // Draw the results
+
+        tf.dispose([input, res, predictions, boxes, scores, classes, nms]);
+
         boundingBoxes.forEach(result => {
-            tempContext.beginPath();
-            tempContext.rect(result.bbox[0], result.bbox[1], result.bbox[2], result.bbox[3]);
-            tempContext.lineWidth = 2;
-            tempContext.strokeStyle = "red";
-            tempContext.fillStyle = "red";
-            tempContext.stroke();
-            tempContext.fillText(
+            ctx.beginPath();
+            ctx.rect(result.bbox[0], result.bbox[1], result.bbox[2], result.bbox[3]);
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = "red";
+            ctx.fillStyle = "red";
+            ctx.stroke();
+            ctx.fillText(
                 result.label,
                 result.bbox[0],
                 result.bbox[1] > 10 ? result.bbox[1] - 5 : 10
             );
         });
 
-        // Draw the tempCanvas to the visible canvas
-        ctx.drawImage(tempCanvas, 0, 0);
-
         return boundingBoxes;
     }
+
 
 
     // Function to run detection on video frames
