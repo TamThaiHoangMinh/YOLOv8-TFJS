@@ -33,9 +33,11 @@ const YOLOv8_TFJS = async (box) => {
     ); // Load model
 
     // Warming up model
-    // const dummyInput = tf.ones(yolov8.inputs[0].shape);
-    // const warmupResults = yolov8.execute(dummyInput);
+    const dummyInput = tf.ones(yolov8.inputs[0].shape);
+    const warmupResults = yolov8.execute(dummyInput);
 
+    console.log("Model loaded" + warmupResults)
+    tf.dispose([warmupResults, dummyInput]);
     // Prepare UI
     const main_container = document.createElement("div");
     main_container.className = "flex w-full h-full overflow-hidden";
@@ -61,6 +63,78 @@ const YOLOv8_TFJS = async (box) => {
     const video = main_container.querySelector('video');
     const canvas = main_container.querySelector("canvas");
     const ctx = canvas.getContext("2d");
+
+    async function detect(video, model, ctx) {
+        // Ensure the video data is ready
+        if (video.readyState < 3) {
+            return [];
+        }
+
+        // Create a temporary canvas to hold the video frame
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = video.videoWidth;
+        tempCanvas.height = video.videoHeight;
+        const tempContext = tempCanvas.getContext('2d');
+
+        // Draw the video frame to the canvas
+        tempContext.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+
+        // Now we can get the pixels from the canvas instead of the video
+        const tfImg = tf.browser.fromPixels(tempCanvas);
+        const resizedImg = tf.image.resizeBilinear(tfImg, [640, 640]); // Assuming the model accepts 416x416 images
+        const castedImg = resizedImg.toFloat();
+        const expandedImg = castedImg.expandDims(0);
+        const img = expandedImg.div(tf.scalar(255)); // Normalize the image to [0, 1]
+
+        // Use the model to do object detection
+        const predictions = await model.executeAsync(img);
+        console.log("Predictions: " + predictions);
+        // Filter predictions. Assuming 'scores' and 'boxes' are output by the model
+        const scores = predictions[0].dataSync();
+        const boxes = predictions[1].dataSync();
+
+        // Get indices of scores that are over a certain threshold
+        const indices = scores
+            .map((score, i) => (score > 0.5 ? i : -1)) // Threshold of 0.5
+            .filter((index) => index !== -1);
+
+        // Build up the bounding boxes
+        const boundingBoxes = indices.map((index) => {
+            const minY = boxes[index * 4 + 0] * video.height;
+            const minX = boxes[index * 4 + 1] * video.width;
+            const maxY = boxes[index * 4 + 2] * video.height;
+            const maxX = boxes[index * 4 + 3] * video.width;
+
+            return {
+                label: "object", // You'll need to use your labels.json to get the actual label
+                bbox: [minX, minY, maxX - minX, maxY - minY],
+                score: scores[index],
+            };
+        });
+
+        tf.dispose([tfImg, resizedImg, castedImg, expandedImg, img]); // Don't forget to clean up
+
+        // Draw the results
+        boundingBoxes.forEach(result => {
+            tempContext.beginPath();
+            tempContext.rect(result.bbox[0], result.bbox[1], result.bbox[2], result.bbox[3]);
+            tempContext.lineWidth = 2;
+            tempContext.strokeStyle = "red";
+            tempContext.fillStyle = "red";
+            tempContext.stroke();
+            tempContext.fillText(
+                result.label,
+                result.bbox[0],
+                result.bbox[1] > 10 ? result.bbox[1] - 5 : 10
+            );
+        });
+
+        // Draw the tempCanvas to the visible canvas
+        ctx.drawImage(tempCanvas, 0, 0);
+
+        return boundingBoxes;
+    }
+
 
     // Function to run detection on video frames
     const detectWebcam = async () => {
