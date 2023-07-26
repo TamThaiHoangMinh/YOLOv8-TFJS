@@ -15,21 +15,25 @@ const loadScript = (boxWindow, url) => {
     });
 }
 
-// Combine this with "es6-string-html" to get a nice syntax and color for HTML instead of single color text
-const html = (strings, ...values) =>
-    String.raw(strings, ...values)
-        .split('\n')
-        .map(line => line.trim())
-        .join('');
+const loadReact = async (boxWindow) => {
+    await loadScript(boxWindow, `https://unpkg.com/react@17/umd/react.production.min.js`);
+    await loadScript(boxWindow, `https://unpkg.com/react-dom@17/umd/react-dom.production.min.js`);
+};
 
 const YOLOv8_TFJS = async (box) => {
-    // widget provides a user interface to interact with the simulator
-    const main_container = document.createElement("div");
-    main_container.className = "flex w-full h-full overflow-hidden";
-    main_container.innerHTML = html`
-    <div>HelloWorld</div>
-    `
-    box.injectNode(main_container);
+    await loadScript(box.window, `https://cdn.tailwindcss.com`); // Load tailwind css CDN
+    await loadReact(box.window); // Load React and ReactDOM
+
+    const YOLOv8_TFJS_Component = box.window.React.createElement(
+        'div',
+        { className: 'flex w-full h-full overflow-hidden' },
+        box.window.React.createElement('div', null, 'HelloWorld')
+    );
+
+    const container = box.window.document.createElement('div');
+    box.injectNode(container);
+
+    box.window.ReactDOM.render(YOLOv8_TFJS_Component, container);
 }
 
 const plugin = async ({ widgets, simulator, vehicle }) => {
