@@ -15,20 +15,47 @@ const loadScript = (boxWindow, url) => {
     });
 }
 
-// Combine this with "es6-string-html" to get a nice syntax and color for HTML instead of single color text
-const html = (strings, ...values) =>
-    String.raw(strings, ...values)
-        .split('\n')
-        .map(line => line.trim())
-        .join('');
+const loadCDN = async (boxWindow) => {
+    await loadScript(boxWindow, `https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0`);
+    await loadScript(boxWindow, `https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@3.11.0`);
+    await loadScript(boxWindow, `https://cdn.tailwindcss.com`);
+};
 
 const YOLOv8_TFJS = async (box) => {
-    // widget provides a user interface to interact with the simulator
+    await loadCDN(box.window);
+    const tf = box.window.tf;
+
+    // Model configs
+    const modelName = "yolov8n";
+
+    const yolov8 = await tf.loadGraphModel(
+        `http://127.0.0.1:5500/yolov8n_web_model/model.json`
+    ); // Load model
+
+    // Warming up model
+    // const dummyInput = tf.ones(yolov8.inputs[0].shape);
+    // const warmupResults = yolov8.execute(dummyInput);
+
+    // Prepare UI
     const main_container = document.createElement("div");
     main_container.className = "flex w-full h-full overflow-hidden";
-    main_container.innerHTML = html`
-    <div>HelloWorld</div>
-    `
+
+    // Create elements as in your React code.
+    // You would need to implement listeners, add appropriate styles, and adjust to suit your needs.
+    main_container.innerHTML = `
+        <div>
+            <h1>📷 YOLOv8 Live Detection App</h1>
+            <p>YOLOv8 live detection application on browser powered by tensorflow.js</p>
+            <p>Serving : <code>${modelName}</code></p>
+        </div>
+        <div>
+            <img id="image" src="#" />
+            <video id="camera" autoplay muted></video>
+            <video id="video" autoplay muted></video>
+        </div>
+        <button id="button-handler">Handle</button>
+    `;
+
     box.injectNode(main_container);
 }
 
