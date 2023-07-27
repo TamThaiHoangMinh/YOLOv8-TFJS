@@ -81,18 +81,7 @@ const YOLOv8_TFJS = async (box) => {
     const ctx = canvas.getContext("2d");
 
     canvas.width = 640;
-    canvas.height = 480;    
-
-    console.log(video);
-    console.log(canvas);
-    console.log(ctx);
-    console.log("canvas width: " + canvas.width + " canvas height: " + canvas.height)
-
-    // ctx.beginPath();
-    // ctx.rect(20, 20, 150, 100);
-    // ctx.strokeStyle = 'green';
-    // ctx.stroke();
-    // ctx.fillRect(10, 10, 10, 10)
+    canvas.height = 640;    
 
     // Get Classes from labels.json
     let labels = [];
@@ -111,6 +100,7 @@ const YOLOv8_TFJS = async (box) => {
 
     await getLabels();
 
+    // Render bounding boxes and their labels name + scores on canvas
     const renderBoxes = (boxes_data, scores_data, classes_data, ratios) => {
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // clean canvas
       
@@ -313,17 +303,13 @@ const YOLOv8_TFJS = async (box) => {
         return boundingBoxes;
     }
 
-
-
     // Function to run detection on video frames
     const detectWebcam = async () => {
         if (video.readyState === 4) {
-            // Set canvas dimensions
             await detect(video, yolov8, ctx);
             // Call this function again to detect the next frame
             window.requestAnimationFrame(detectWebcam);
         }
-        console.log("video width: " + video.videoWidth + " video height: " + video.videoHeight)
     };
 
     // Get video from webcam
