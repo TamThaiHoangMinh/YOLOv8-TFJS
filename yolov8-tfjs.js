@@ -163,15 +163,14 @@ const YOLOv8_TFJS = async (box) => {
       class Colors {
         constructor() {
           this.palette = [
-            "#005072",
-            "#0D596E",
-            "#1C6269",
-            "#2C6C64",
-            "#437A5C",
-            "#558556",
-            "#6C944E",
-            "#91AB42",
-            "#AEBD38",
+            "#BC4749",
+            "#F2E8CF",
+            "#A7C957",
+            "#6A994E",
+            "#386641",
+            "#FF9E00",
+            "#E09F3E",
+            "#335C67",
           ];
           this.n = this.palette.length;
         }
