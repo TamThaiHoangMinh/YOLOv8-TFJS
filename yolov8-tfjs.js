@@ -65,9 +65,9 @@ const YOLOv8_TFJS = async (box) => {
             <div>
                 <h1>📷 YOLOv8 Live Detection</h1>
             </div>
-            <div class="flex">
+            <div class="relative">
                 <video id="camera" autoplay muted></video>
-                <canvas id="canvas" style="width: 640px; height: 480px"></canvas>
+                <canvas id="canvas" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0;"></canvas>
             </div>
         </div>
     </div>
@@ -79,17 +79,20 @@ const YOLOv8_TFJS = async (box) => {
     const video = main_container.querySelector('video');
     const canvas = main_container.querySelector('#canvas');
     const ctx = canvas.getContext("2d");
+
+    canvas.width = 640;
+    canvas.height = 480;    
+
     console.log(video);
     console.log(canvas);
     console.log(ctx);
     console.log("canvas width: " + canvas.width + " canvas height: " + canvas.height)
 
-    ctx.beginPath();
-    ctx.rect(20, 20, 150, 100);
-    ctx.strokeStyle = 'green';
-    ctx.stroke();
-    ctx.fillRect(10, 10, 10, 10)
-
+    // ctx.beginPath();
+    // ctx.rect(20, 20, 150, 100);
+    // ctx.strokeStyle = 'green';
+    // ctx.stroke();
+    // ctx.fillRect(10, 10, 10, 10)
 
     // Get Classes from labels.json
     let labels = [];
@@ -127,7 +130,7 @@ const YOLOv8_TFJS = async (box) => {
             const color = colors.get(classes_data[i]);
             const score = (scores_data[i] * 100).toFixed(1);
 
-            console.log("score: " + score + " klass: " + klass + " color: " + color)
+            // console.log("score: " + score + " klass: " + klass + " color: " + color)
         
             let [y1, x1, y2, x2] = boxes_data.slice(i * 4, (i + 1) * 4);
             x1 *= ratios[0];
@@ -137,8 +140,8 @@ const YOLOv8_TFJS = async (box) => {
             const width = x2 - x1;
             const height = y2 - y1;
 
-            console.log("width: " + width + " height: " + height)
-            console.log("x1: " + x1 + " y1: " + y1 + " x2: " + x2 + " y2: " + y2)
+            // console.log("width: " + width + " height: " + height)
+            // console.log("x1: " + x1 + " y1: " + y1 + " x2: " + x2 + " y2: " + y2)
             // draw box.
             ctx.fillStyle = Colors.hexToRgba(color, 0.2);
             ctx.fillRect(x1, y1, width, height);
@@ -301,7 +304,7 @@ const YOLOv8_TFJS = async (box) => {
             };
         });
 
-        console.log(boundingBoxes); // add this line
+        // console.log(boundingBoxes); // add this line
 
         tf.dispose([input, res, predictions, boxes, scores, classes, nms]);
 
@@ -320,6 +323,7 @@ const YOLOv8_TFJS = async (box) => {
             // Call this function again to detect the next frame
             window.requestAnimationFrame(detectWebcam);
         }
+        console.log("video width: " + video.videoWidth + " video height: " + video.videoHeight)
     };
 
     // Get video from webcam
