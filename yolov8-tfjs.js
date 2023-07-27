@@ -60,13 +60,14 @@ const YOLOv8_TFJS = async (box) => {
 
     // Create elements as in your React code.
     main_container.innerHTML = html`
-    <div class="bg-red-200">
+    <div class="">
         <div class="flex flex-col items-center justify-center">
-            <div>
-                <h1>📷 YOLOv8 Live Detection</h1>
+            <div class="inline-block text-center text-2xl mt-4 mb-6 font-bold 
+            uppercase bg-gradient-to-r from-violet-600 to-blue-600 uppercase font-semibold mb-5  bg-clip-text text-transparent">
+                <h1>Real-time object detection with Tensorflow JS</h1>
             </div>
             <div class="relative">
-                <video id="camera" autoplay muted></video>
+                <video id="camera" style ="border-radius: 5px" autoplay muted></video>
                 <canvas id="canvas" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0;"></canvas>
             </div>
         </div>
@@ -133,7 +134,7 @@ const YOLOv8_TFJS = async (box) => {
             // console.log("width: " + width + " height: " + height)
             // console.log("x1: " + x1 + " y1: " + y1 + " x2: " + x2 + " y2: " + y2)
             // draw box.
-            ctx.fillStyle = Colors.hexToRgba(color, 0.2);
+            ctx.fillStyle = Colors.hexToRgba(color, 0.1);
             ctx.fillRect(x1, y1, width, height);
         
             // draw border box.
@@ -160,29 +161,18 @@ const YOLOv8_TFJS = async (box) => {
       };
       
       class Colors {
-        // ultralytics color palette https://ultralytics.com/
         constructor() {
           this.palette = [
-            "#FF3838",
-            "#FF9D97",
-            "#FF701F",
-            "#FFB21D",
-            "#CFD231",
-            "#48F90A",
-            "#92CC17",
-            "#3DDB86",
-            "#1A9334",
-            "#00D4BB",
-            "#2C99A8",
-            "#00C2FF",
-            "#344593",
-            "#6473FF",
-            "#0018EC",
-            "#8438FF",
-            "#520085",
-            "#CB38FF",
-            "#FF95C8",
-            "#FF37C7",
+            "#757BC8",
+            "#8187DC",
+            "#8E94F2",
+            "#9FA0FF",
+            "#ADA7FF",
+            "#BBADFF",
+            "#CBB2FE",
+            "#DAB6FC",
+            "#DDBDFC",
+            "#E0C3FC",
           ];
           this.n = this.palette.length;
         }
