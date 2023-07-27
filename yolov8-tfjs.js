@@ -35,9 +35,14 @@ const YOLOv8_TFJS = async (box) => {
     // Model configs
     const modelName = "yolov8n";
 
+    // const yolov8 = await tf.loadGraphModel(
+    //     `http://127.0.0.1:5500/yolov8n_web_model/model.json`
+    // ); // Load model
+
     const yolov8 = await tf.loadGraphModel(
-        `http://127.0.0.1:5500/yolov8n_web_model/model.json`
+        `http://127.0.0.1:5500/last_web_model/model.json`
     ); // Load model
+
 
     // Warming up model
     const dummyInput = tf.ones(yolov8.inputs[0].shape);
@@ -89,7 +94,8 @@ const YOLOv8_TFJS = async (box) => {
     let numClass;
     async function getLabels() {
         try {
-            const response = await fetch('http://127.0.0.1:5500/labels.json');
+            // const response = await fetch('http://127.0.0.1:5500/labels.json');
+            const response = await fetch('http://127.0.0.1:5500/viet_labels.json');
             labels = await response.json();
         } catch (error) {
             console.error('Error at fetching labels', error);

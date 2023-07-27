@@ -1,0 +1,14 @@
+description: Ultralytics last model (untrained)
+author: Ultralytics
+license: AGPL-3.0 https://ultralytics.com/license
+date: '2023-07-27T10:34:28.232886'
+version: 8.0.143
+stride: 32
+task: detect
+batch: 1
+imgsz:
+- 640
+- 640
+names:
+  0: holding_phone
+  1: listening_to_phone
