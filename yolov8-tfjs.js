@@ -63,7 +63,7 @@ const YOLOv8_TFJS = async (box) => {
     <div class="">
         <div class="flex flex-col items-center justify-center">
             <div class="inline-block text-center text-2xl mt-4 mb-6 font-bold 
-            uppercase bg-gradient-to-r from-violet-600 to-blue-600 uppercase font-semibold mb-5  bg-clip-text text-transparent">
+            uppercase bg-gradient-to-r from-[#0D596E] to-[#91AB42] uppercase font-semibold mb-5  bg-clip-text text-transparent">
                 <h1>Real-time object detection with Tensorflow JS</h1>
             </div>
             <div class="relative">
@@ -163,16 +163,15 @@ const YOLOv8_TFJS = async (box) => {
       class Colors {
         constructor() {
           this.palette = [
-            "#757BC8",
-            "#8187DC",
-            "#8E94F2",
-            "#9FA0FF",
-            "#ADA7FF",
-            "#BBADFF",
-            "#CBB2FE",
-            "#DAB6FC",
-            "#DDBDFC",
-            "#E0C3FC",
+            "#005072",
+            "#0D596E",
+            "#1C6269",
+            "#2C6C64",
+            "#437A5C",
+            "#558556",
+            "#6C944E",
+            "#91AB42",
+            "#AEBD38",
           ];
           this.n = this.palette.length;
         }
