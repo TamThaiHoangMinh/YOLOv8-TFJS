@@ -38,6 +38,12 @@ const YOLOv8_TFJS = async (box) => {
 
     console.log("Model loaded" + warmupResults)
     tf.dispose([warmupResults, dummyInput]);
+
+    let modelDetails = {
+        net: yolov8,
+        inputShape: yolov8.inputs[0].shape,
+    }
+
     // Prepare UI
     const main_container = document.createElement("div");
     main_container.className = "flex w-full h-full overflow-hidden";
@@ -64,21 +70,38 @@ const YOLOv8_TFJS = async (box) => {
     const canvas = main_container.querySelector("canvas");
     const ctx = canvas.getContext("2d");
 
+    // Get Classes from labels.json
+    let labels = [];
+    let numClass;
+    async function getLabels() {
+        try {
+            const response = await fetch('http://127.0.0.1:5500/labels.json');
+            labels = await response.json();
+        } catch (error) {
+            console.error('Error at fetching labels', error);
+        }
+
+        numClass = labels.length;
+        console.log("numClass: " + numClass);
+    }
+
+    await getLabels();
+
     const preprocess = (source, modelWidth, modelHeight) => {
         let xRatio, yRatio; // ratios for boxes
 
         const input = tf.tidy(() => {
             const img = tf.browser.fromPixels(source);
-            console.log(`img shape: ${img.shape}`);
+            // console.log(`img shape: ${img.shape}`);
             const [h, w] = img.shape.slice(0, 2); // get source width and height
             const maxSize = Math.max(w, h); // get max size
-            console.log(`modelWidth: ${modelWidth}, modelHeight: ${modelHeight}, w: ${w}, h: ${h}, maxSize: ${maxSize}`);
+            // console.log(`modelWidth: ${modelWidth}, modelHeight: ${modelHeight}, w: ${w}, h: ${h}, maxSize: ${maxSize}`);
             const imgPadded = img.pad([
                 [0, maxSize - h], // padding y [bottom only]
                 [0, maxSize - w], // padding x [right only]
                 [0, 0],
             ]);
-            console.log(`imgPadded shape: ${imgPadded.shape}`);
+            // console.log(`imgPadded shape: ${imgPadded.shape}`);
 
 
             xRatio = maxSize / w; // update xRatio
@@ -88,7 +111,7 @@ const YOLOv8_TFJS = async (box) => {
                 .resizeBilinear(imgPadded, [modelWidth, modelHeight]) // resize frame
                 .div(255.0) // normalize
                 .expandDims(0); // add batch
-            console.log(result.shape);
+            // console.log(result.shape);
             return result;
         });
 
@@ -103,31 +126,9 @@ const YOLOv8_TFJS = async (box) => {
         console.log(model);
         console.log(model.inputs);
 
-        let modelDetails = {
-            net: yolov8,
-            inputShape: yolov8.inputs[0].shape,
-        }
-
-        let labels = [];
-        let numClass;
-
-        async function getLabels() {
-            try {
-                const response = await fetch('http://127.0.0.1:5500/labels.json');
-                labels = await response.json();
-            } catch (error) {
-                console.error('Error at fetching labels', error);
-            }
-
-            numClass = labels.length;
-            console.log("numClass: " + numClass);
-        }
-
-        await getLabels();
-
-
         const modelWidth = modelDetails.inputShape[1];
         const modelHeight = modelDetails.inputShape[2];
+        
         // Create a temporary canvas to hold the video frame
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = video.videoWidth;
@@ -166,7 +167,7 @@ const YOLOv8_TFJS = async (box) => {
         const boxes_data = boxes.gather(nms, 0).dataSync();
         const scores_data = scores.gather(nms, 0).dataSync();
         const classes_data = classes.gather(nms, 0).dataSync();
-
+    
         // console.log("boxes_data" + boxes_data);
         // console.log("scores_data" + scores_data);
         // console.log("classes_data" + classes_data);
@@ -214,25 +215,7 @@ const YOLOv8_TFJS = async (box) => {
             // Set canvas dimensions
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-
-            // Run detection and draw results on the canvas
-            const results = await detect(video, yolov8, ctx);
-            // Assuming "detect" function will return bounding boxes and labels, etc.
-            results.forEach(result => {
-                // Assuming each result has a bounding box and label
-                ctx.beginPath();
-                ctx.rect(result.bbox[0], result.bbox[1], result.bbox[2], result.bbox[3]);
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = "red";
-                ctx.fillStyle = "red";
-                ctx.stroke();
-                ctx.fillText(
-                    result.label,
-                    result.bbox[0],
-                    result.bbox[1] > 10 ? result.bbox[1] - 5 : 10
-                );
-            });
-
+            await detect(video, yolov8, ctx);
             // Call this function again to detect the next frame
             window.requestAnimationFrame(detectWebcam);
         }
