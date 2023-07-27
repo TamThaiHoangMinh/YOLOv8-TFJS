@@ -62,23 +62,34 @@ const YOLOv8_TFJS = async (box) => {
     main_container.innerHTML = html`
     <div class="bg-red-200">
         <div class="flex flex-col items-center justify-center">
-            <div class="bg-blue-200">
+            <div>
                 <h1>📷 YOLOv8 Live Detection</h1>
             </div>
             <div class="flex">
                 <video id="camera" autoplay muted></video>
-                <canvas id="canvas" class="" style="width: ${modelDetails.inputShape[1]}px; height: ${modelDetails.inputShape[1]}px"></canvas>
+                <canvas id="canvas" style="width: 640px; height: 480px"></canvas>
             </div>
         </div>
     </div>
     `;
-
     box.injectNode(main_container);
+
 
     // Access the video and canvas elements
     const video = main_container.querySelector('video');
-    const canvas = main_container.querySelector("canvas");
+    const canvas = main_container.querySelector('#canvas');
     const ctx = canvas.getContext("2d");
+    console.log(video);
+    console.log(canvas);
+    console.log(ctx);
+    console.log("canvas width: " + canvas.width + " canvas height: " + canvas.height)
+
+    ctx.beginPath();
+    ctx.rect(20, 20, 150, 100);
+    ctx.strokeStyle = 'green';
+    ctx.stroke();
+    ctx.fillRect(10, 10, 10, 10)
+
 
     // Get Classes from labels.json
     let labels = [];
@@ -98,7 +109,7 @@ const YOLOv8_TFJS = async (box) => {
     await getLabels();
 
     const renderBoxes = (boxes_data, scores_data, classes_data, ratios) => {
-        // ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // clean canvas
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // clean canvas
       
         const colors = new Colors();
       
@@ -254,7 +265,6 @@ const YOLOv8_TFJS = async (box) => {
         const predictions = res.transpose([0, 2, 1]); // transpose result [b, det, n] => [b, n, det]
         // console.log('predictions', predictions);
 
-
         const boxes = tf.tidy(() => {
             const w = predictions.slice([0, 0, 2], [-1, -1, 1]); // get width
             const h = predictions.slice([0, 0, 3], [-1, -1, 1]); // get height
@@ -291,8 +301,7 @@ const YOLOv8_TFJS = async (box) => {
             };
         });
 
-        // console.log(boundingBoxes); // add this line
-
+        console.log(boundingBoxes); // add this line
 
         tf.dispose([input, res, predictions, boxes, scores, classes, nms]);
 
@@ -307,8 +316,6 @@ const YOLOv8_TFJS = async (box) => {
     const detectWebcam = async () => {
         if (video.readyState === 4) {
             // Set canvas dimensions
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
             await detect(video, yolov8, ctx);
             // Call this function again to detect the next frame
             window.requestAnimationFrame(detectWebcam);
