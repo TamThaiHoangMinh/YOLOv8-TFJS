@@ -21,6 +21,13 @@ const loadCDN = async (boxWindow) => {
     await loadScript(boxWindow, `https://cdn.tailwindcss.com`);
 };
 
+// Combine this with "es6-string-html" to get a nice syntax and color for HTML instead of single color text
+const html = (strings, ...values) =>
+  String.raw(strings, ...values)
+    .split('\n')
+    .map(line => line.trim())
+    .join('');
+
 const YOLOv8_TFJS = async (box) => {
     await loadCDN(box.window);
     const tf = box.window.tf;
@@ -39,28 +46,31 @@ const YOLOv8_TFJS = async (box) => {
     console.log("Model loaded" + warmupResults)
     tf.dispose([warmupResults, dummyInput]);
 
+    // Fetch model details
     let modelDetails = {
         net: yolov8,
         inputShape: yolov8.inputs[0].shape,
     }
+    const modelWidth = modelDetails.inputShape[1];
+    const modelHeight = modelDetails.inputShape[2];
 
     // Prepare UI
     const main_container = document.createElement("div");
-    main_container.className = "flex w-full h-full overflow-hidden";
+    main_container.className = "flex w-full h-full justify-center items-center";
 
     // Create elements as in your React code.
-    main_container.innerHTML = `
-        <div>
-            <h1>📷 YOLOv8 Live Detection App</h1>
-            <p>YOLOv8 live detection application on browser powered by tensorflow.js</p>
-            <p>Serving : <code>${modelName}</code></p>
+    main_container.innerHTML = html`
+    <div class="bg-red-200">
+        <div class="flex flex-col items-center justify-center">
+            <div class="bg-blue-200">
+                <h1>📷 YOLOv8 Live Detection</h1>
+            </div>
+            <div class="flex">
+                <video id="camera" autoplay muted></video>
+                <canvas id="canvas" class="" style="width: ${modelDetails.inputShape[1]}px; height: ${modelDetails.inputShape[1]}px"></canvas>
+            </div>
         </div>
-        <div>
-            <img id="image" src="#" />
-            <video id="camera" autoplay muted></video>
-            <canvas id="canvas"></canvas>
-        </div>
-        <button id="button-handler">Handle</button>
+    </div>
     `;
 
     box.injectNode(main_container);
@@ -87,9 +97,8 @@ const YOLOv8_TFJS = async (box) => {
 
     await getLabels();
 
-    const renderBoxes = (canvasRef, boxes_data, scores_data, classes_data, ratios) => {
-        const ctx = canvasRef.getContext("2d");
-        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // clean canvas
+    const renderBoxes = (boxes_data, scores_data, classes_data, ratios) => {
+        // ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // clean canvas
       
         const colors = new Colors();
       
@@ -102,47 +111,47 @@ const YOLOv8_TFJS = async (box) => {
         ctx.textBaseline = "top";
 
         for (let i = 0; i < scores_data.length; ++i) {
-          // filter based on class threshold
-          const klass = labels[classes_data[i]];
-          const color = colors.get(classes_data[i]);
-          const score = (scores_data[i] * 100).toFixed(1);
+            // filter based on class threshold
+            const klass = labels[classes_data[i]];
+            const color = colors.get(classes_data[i]);
+            const score = (scores_data[i] * 100).toFixed(1);
 
-          console.log("score: " + score + " klass: " + klass + " color: " + color)
-      
-          let [y1, x1, y2, x2] = boxes_data.slice(i * 4, (i + 1) * 4);
-          x1 *= ratios[0];
-          x2 *= ratios[0];
-          y1 *= ratios[1];
-          y2 *= ratios[1];
-          const width = x2 - x1;
-          const height = y2 - y1;
+            console.log("score: " + score + " klass: " + klass + " color: " + color)
+        
+            let [y1, x1, y2, x2] = boxes_data.slice(i * 4, (i + 1) * 4);
+            x1 *= ratios[0];
+            x2 *= ratios[0];
+            y1 *= ratios[1];
+            y2 *= ratios[1];
+            const width = x2 - x1;
+            const height = y2 - y1;
 
-          console.log("width: " + width + " height: " + height)
-
-          // draw box.
-          ctx.fillStyle = Colors.hexToRgba(color, 0.2);
-          ctx.fillRect(x1, y1, width, height);
-      
-          // draw border box.
-          ctx.strokeStyle = color;
-          ctx.lineWidth = Math.max(Math.min(ctx.canvas.width, ctx.canvas.height) / 200, 2.5);
-          ctx.strokeRect(x1, y1, width, height);
-      
-          // Draw the label background.
-          ctx.fillStyle = color;
-          const textWidth = ctx.measureText(klass + " - " + score + "%").width;
-          const textHeight = parseInt(font, 10); // base 10
-          const yText = y1 - (textHeight + ctx.lineWidth);
-          ctx.fillRect(
+            console.log("width: " + width + " height: " + height)
+            console.log("x1: " + x1 + " y1: " + y1 + " x2: " + x2 + " y2: " + y2)
+            // draw box.
+            ctx.fillStyle = Colors.hexToRgba(color, 0.2);
+            ctx.fillRect(x1, y1, width, height);
+        
+            // draw border box.
+            ctx.strokeStyle = color;
+            ctx.lineWidth = Math.max(Math.min(ctx.canvas.width, ctx.canvas.height) / 200, 2.5);
+            ctx.strokeRect(x1, y1, width, height);
+        
+            // Draw the label background.
+            ctx.fillStyle = color;
+            const textWidth = ctx.measureText(klass + " - " + score + "%").width;
+            const textHeight = parseInt(font, 10); // base 10
+            const yText = y1 - (textHeight + ctx.lineWidth);
+            ctx.fillRect(
             x1 - 1,
             yText < 0 ? 0 : yText, // handle overflow label box
             textWidth + ctx.lineWidth,
             textHeight + ctx.lineWidth
-          );
-      
-          // Draw labels
-          ctx.fillStyle = "#ffffff";
-          ctx.fillText(klass + " - " + score + "%", x1 - 1, yText < 0 ? 0 : yText);
+            );
+        
+            // Draw labels
+            ctx.fillStyle = "#ffffff";
+            ctx.fillText(klass + " - " + score + "%", x1 - 1, yText < 0 ? 0 : yText);
         }
       };
       
@@ -225,10 +234,7 @@ const YOLOv8_TFJS = async (box) => {
 
         // console.log(model);
         // console.log(model.inputs);
-
-        const modelWidth = modelDetails.inputShape[1];
-        const modelHeight = modelDetails.inputShape[2];
-        
+   
         // Create a temporary canvas to hold the video frame
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = video.videoWidth;
@@ -290,7 +296,7 @@ const YOLOv8_TFJS = async (box) => {
 
         tf.dispose([input, res, predictions, boxes, scores, classes, nms]);
 
-        renderBoxes(canvas, boxes_data, scores_data, classes_data, [xRatio, yRatio]);
+        renderBoxes(boxes_data, scores_data, classes_data, [xRatio, yRatio]);
 
         return boundingBoxes;
     }
